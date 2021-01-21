@@ -4,10 +4,13 @@ import (
 	"net/url"
 )
 
+// A Request represents a Gemini request received by a server or to be sent by a
+// client.
 type Request struct {
 	URL *url.URL
 }
 
+// NewRequest returns a new Request given a URL in string form.
 func NewRequest(rawUrl string) (*Request, error) {
 	url, err := url.Parse(rawUrl)
 	if err != nil {
@@ -19,6 +22,7 @@ func NewRequest(rawUrl string) (*Request, error) {
 	}, nil
 }
 
+// NewRequestURL returns a new Request given a URL.
 func NewRequestURL(url *url.URL) *Request {
 	return &Request{
 		URL: url,
