@@ -7,7 +7,7 @@ const (
 	StatusSensitiveInput           int = 11
 	StatusSuccess                  int = 20
 	StatusRedirect                 int = 30
-	StatusPermanentRedirect        int = 30
+	StatusPermanentRedirect        int = 31
 	StatusTemporaryFailure         int = 40
 	StatusServerUnavailable        int = 41
 	StatusCGIError                 int = 42
@@ -32,4 +32,8 @@ type Response struct {
 
 func (r *Response) IsSuccess() bool {
 	return r.Status >= StatusSuccess && r.Status < StatusRedirect
+}
+
+func (r *Response) IsRedirect() bool {
+	return r.Status >= StatusRedirect && r.Status < StatusTemporaryFailure
 }

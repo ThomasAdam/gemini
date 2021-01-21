@@ -18,3 +18,9 @@ func NewRequest(rawUrl string) (*Request, error) {
 		URL: url,
 	}, nil
 }
+
+func NewRequestURL(url *url.URL) *Request {
+	return &Request{
+		URL: url,
+	}
+}
