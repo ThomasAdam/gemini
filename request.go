@@ -10,6 +10,10 @@ type Request struct {
 	URL *url.URL
 }
 
+func (r *Request) String() string {
+	return r.URL.String() + "\r\n"
+}
+
 // NewRequest returns a new Request given a URL in string form.
 func NewRequest(rawUrl string) (*Request, error) {
 	url, err := url.Parse(rawUrl)

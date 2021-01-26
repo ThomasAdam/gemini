@@ -1,6 +1,12 @@
 package gemini
 
-import "io"
+import (
+	"bufio"
+	"errors"
+	"io"
+	"strconv"
+	"strings"
+)
 
 // Gemini status codes, as referenced in the spec.
 const (
@@ -22,6 +28,10 @@ const (
 	StatusCertificateRequired      int = 60
 	StatusCertificateNotAuthorized int = 61
 	StatusCertificateNotValid      int = 62
+
+	// Sentinel value - this is larger than the current largest valid status
+	// code family.
+	statusSentinel int = 70
 )
 
 // Response represents the response from a Gemini request.
@@ -33,6 +43,41 @@ type Response struct {
 	Meta   string
 
 	Body io.ReadCloser
+}
+
+func ReadResponse(conn io.ReadCloser) (*Response, error) {
+	reader := bufio.NewReader(conn)
+	line, err := reader.ReadString('\n')
+	if err != nil {
+		return nil, err
+	}
+
+	// This check needs to be here, otherwise TrimSuffix won't be able to
+	// guarantee that we're getting valid lines.
+	if !strings.HasSuffix(line, "\r\n") {
+		return nil, errors.New("malformed status line")
+	}
+
+	line = strings.TrimSuffix(line, "\r\n")
+
+	split := strings.SplitN(line, " ", 2)
+	if len(split) != 2 {
+		return nil, errors.New("invalid response")
+	}
+
+	status, err := strconv.Atoi(split[0])
+	if err != nil {
+		return nil, err
+	}
+
+	return &Response{
+		Status: status,
+		Meta:   split[1],
+		Body: &wrappedBufferedReader{
+			buf: reader,
+			rc:  conn,
+		},
+	}, nil
 }
 
 // IsInput is a convenience method for determining if this response status
@@ -68,5 +113,5 @@ func (r *Response) IsPermanentFailure() bool {
 // IsCertificateRequired is a convenience method for determining if this
 // response status represents a client certificate failure.
 func (r *Response) IsCertificateRequired() bool {
-	return r.Status >= StatusCertificateRequired && r.Status < 70
+	return r.Status >= StatusCertificateRequired && r.Status < statusSentinel
 }

@@ -1,17 +1,17 @@
 package gemini
 
 import (
-	"bufio"
 	"context"
 	"crypto/tls"
 	"errors"
 	"net/url"
-	"strconv"
-	"strings"
 )
 
 func defaultCheckRedirect(req *Request, via []*Request) error {
-	if len(via) >= 10 {
+	// The best practices doc
+	// (gemini://gemini.circumlunar.space/docs/best-practices.gmi) recommends a
+	// maximum of 5 redirects.
+	if len(via) >= 5 {
 		return errors.New("too many redirects")
 	}
 	return nil
@@ -31,7 +31,7 @@ type Client struct {
 	// issuing the Request req.
 	//
 	// If CheckRedirect is nil, the Client uses its default policy, which is to
-	// stop after 10 consecutive requests.
+	// stop after 5 consecutive requests.
 	CheckRedirect func(req *Request, via []*Request) error
 }
 
@@ -51,16 +51,19 @@ func (c *Client) checkRedirect(req *Request, via []*Request) error {
 // This currently uses context.Background and has no other timeouts.
 func (c *Client) Do(req *Request) (*Response, error) {
 	// See doContext for more details.
-	return c.doContext(context.Background(), req)
+	return c.DoContext(context.Background(), req)
 }
 
 // DoContext sends a Gemini request and returns a Gemini response, following
 // policy (such as redirects, auth) as configured on the client.
-func (c *Client) doContext(ctx context.Context, r *Request) (*Response, error) {
+//
+// The context is only used up to the response status. The response body needs
+// to be handled separately.
+func (c *Client) DoContext(ctx context.Context, r *Request) (*Response, error) {
 	var reqs []*Request
 
 	for {
-		resp, err := c.do(ctx, r)
+		resp, err := c.doRequest(ctx, r)
 		if err != nil {
 			return nil, err
 		}
@@ -98,7 +101,7 @@ func (c *Client) doContext(ctx context.Context, r *Request) (*Response, error) {
 	}
 }
 
-func (c *Client) do(ctx context.Context, r *Request) (*Response, error) {
+func (c *Client) doRequest(ctx context.Context, r *Request) (*Response, error) {
 	hostname := r.URL.Hostname()
 	port := r.URL.Port()
 	if port == "" {
@@ -124,62 +127,65 @@ func (c *Client) do(ctx context.Context, r *Request) (*Response, error) {
 	}
 	conn := rawConn.(*tls.Conn)
 
-	writer := bufio.NewWriter(conn)
-	_, err = writer.WriteString(r.URL.String())
-	if err != nil {
-		return nil, err
+	type retVal struct {
+		resp *Response
+		err  error
 	}
 
-	_, err = writer.WriteString("\r\n")
-	if err != nil {
-		return nil, err
-	}
+	// When this function returns, we close this channel, causing some cleanup
+	// if needed.
+	var doneChan = make(chan struct{})
+	defer close(doneChan)
 
-	err = writer.Flush()
-	if err != nil {
-		return nil, err
-	}
+	// This is buffered, but first past the post wins - it's possible for a
+	// successful request and a timeout to occur concurrently, so we need to
+	// pick one and move on.
+	var retChan = make(chan retVal, 2)
 
-	// The transaction is done, so for good measure, we close our writing side
-	// of the connection. NOTE: this seems to break for a number of servers, so
-	// it's commented out for now.
-	/*
-		err = conn.CloseWrite()
-		if err != nil {
-			return nil, err
+	go func() {
+		// Wait for either the context or the request to be done. We can't just
+		// wait on ctx.Done() because that would cause a goroutine leak whenever
+		// context.Background() is used.
+		select {
+		case <-ctx.Done():
+			retChan <- retVal{nil, errors.New("request timed out")}
+		case <-doneChan:
 		}
-	*/
 
-	reader := bufio.NewReader(conn)
-	line, err := reader.ReadString('\n')
-	if err != nil {
-		return nil, err
+	}()
+
+	go func() {
+		_, err := conn.Write([]byte(r.String()))
+		if err != nil {
+			retChan <- retVal{nil, err}
+			return
+		}
+
+		// The transaction is done, so for good measure, we close our writing side
+		// of the connection.
+		//
+		// NOTE: this seems to break for a number of servers, so it's commented out
+		// for now.
+
+		/*
+			err = conn.CloseWrite()
+			if err != nil {
+				return nil, err
+			}
+		*/
+
+		resp, err := ReadResponse(conn)
+		retChan <- retVal{resp, err}
+	}()
+
+	ret := <-retChan
+
+	// If this was a failed request, we need to close the connection early to
+	// prevent leaking the reader goroutine.
+	if ret.resp == nil {
+		// Yes, an error is being ignored here, but it's by design.
+		_ = rawConn.Close()
 	}
 
-	// This check needs to be here, otherwise TrimSuffix won't be able to
-	// guarantee that we're getting valid lines.
-	if !strings.HasSuffix(line, "\r\n") {
-		return nil, errors.New("malformed status line")
-	}
-
-	line = strings.TrimSuffix(line, "\r\n")
-
-	split := strings.SplitN(line, " ", 2)
-	if len(split) != 2 {
-		return nil, errors.New("invalid response")
-	}
-
-	status, err := strconv.Atoi(split[0])
-	if err != nil {
-		return nil, err
-	}
-
-	return &Response{
-		Status: status,
-		Meta:   split[1],
-		Body: &wrappedBufferedReader{
-			buf: reader,
-			rc:  conn,
-		},
-	}, nil
+	return ret.resp, ret.err
 }
