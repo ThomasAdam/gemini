@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/tls"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -8,23 +10,45 @@ import (
 	"gopkg.in/gemini"
 )
 
+var identityCertFile = flag.String("identity-cert", "", "identity cert file to use for requests")
+var identityKeyFile = flag.String("identity-key", "", "identity key file to use for requests")
+
 func main() {
-	resp, err := gemini.Get(os.Args[1])
-	if err != nil {
-		panic(err.Error())
+	flag.Parse()
+
+	client := gemini.Client{}
+
+	if *identityCertFile != "" && *identityKeyFile != "" {
+		cert, err := tls.LoadX509KeyPair(*identityCertFile, *identityKeyFile)
+		if err != nil {
+			panic(err.Error())
+		}
+		client.Identity = &cert
 	}
-	defer resp.Body.Close()
 
-	fmt.Println(resp.Status, resp.Meta)
+	for _, addr := range flag.Args() {
+		req, err := gemini.NewRequest(addr)
+		if err != nil {
+			panic(err.Error())
+		}
 
-	if !resp.IsSuccess() {
-		return
-	}
+		resp, err := client.Do(req)
+		if err != nil {
+			panic(err.Error())
+		}
+		defer resp.Body.Close()
 
-	fmt.Println()
+		fmt.Println(resp.Status, resp.Meta)
 
-	_, err = io.Copy(os.Stdout, resp.Body)
-	if err != nil {
-		panic(err.Error())
+		if !resp.IsSuccess() {
+			return
+		}
+
+		fmt.Println()
+
+		_, err = io.Copy(os.Stdout, resp.Body)
+		if err != nil {
+			panic(err.Error())
+		}
 	}
 }

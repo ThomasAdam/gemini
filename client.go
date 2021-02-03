@@ -33,6 +33,10 @@ type Client struct {
 	// If CheckRedirect is nil, the Client uses its default policy, which is to
 	// stop after 5 consecutive requests.
 	CheckRedirect func(req *Request, via []*Request) error
+
+	// Identity is the client's identity certificate. It will be sent to the
+	// server to authenticate.
+	Identity *tls.Certificate
 }
 
 // checkRedirect calls either the user's configured CheckRedirect function, or
@@ -108,9 +112,6 @@ func (c *Client) doRequest(ctx context.Context, r *Request) (*Response, error) {
 		port = "1965"
 	}
 
-	// TODO: this needs to properly use ctx during reads. Unfortunately I don't
-	// know if this is possible, so DoContext is currently private.
-
 	// TODO: this needs to be better. Unfortunately the spec allows/recommends
 	// that people not set up letsencrypt or something similar, so we will need
 	// to handle that another way. The generally accepted method is TOFU (trust
@@ -121,6 +122,11 @@ func (c *Client) doRequest(ctx context.Context, r *Request) (*Response, error) {
 			InsecureSkipVerify: true,
 		},
 	}
+
+	if c.Identity != nil {
+		dialer.Config.Certificates = []tls.Certificate{*c.Identity}
+	}
+
 	rawConn, err := dialer.DialContext(ctx, "tcp", hostname+":"+port)
 	if err != nil {
 		return nil, err
