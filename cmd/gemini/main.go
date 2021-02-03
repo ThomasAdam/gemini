@@ -10,6 +10,9 @@ import (
 	"gopkg.in/gemini"
 )
 
+// TODO: gemini.conman.org/test/torture/
+// - 0013
+
 var identityCertFile = flag.String("identity-cert", "", "identity cert file to use for requests")
 var identityKeyFile = flag.String("identity-key", "", "identity key file to use for requests")
 
@@ -43,6 +46,12 @@ func main() {
 		if !resp.IsSuccess() {
 			return
 		}
+
+		fmt.Println()
+
+		mime, params, err := resp.MediaType()
+		fmt.Println("MediaType:", mime)
+		fmt.Printf("Params: %+v\n", params)
 
 		fmt.Println()
 

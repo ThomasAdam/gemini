@@ -72,6 +72,10 @@ func (c *Client) DoContext(ctx context.Context, r *Request) (*Response, error) {
 			return nil, err
 		}
 
+		if resp.statusIsUnknown() {
+			return resp, ErrUnknownStatus
+		}
+
 		// If it wasn't a redirect, this request is done.
 		if !resp.IsRedirect() {
 			return resp, nil
@@ -95,6 +99,11 @@ func (c *Client) DoContext(ctx context.Context, r *Request) (*Response, error) {
 		}
 
 		r = NewRequestURL(r.URL.ResolveReference(ref))
+
+		// If this isn't a gemini URL, return the raw resp.
+		if r.URL.Scheme != "gemini" {
+			return resp, ErrUnknownProtocol
+		}
 
 		// We need to check redirect policy. If no error is returned, we can try
 		// this request as well.

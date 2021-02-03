@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"mime"
 	"strconv"
 	"strings"
 )
@@ -154,4 +155,24 @@ func (r *Response) IsPermanentFailure() bool {
 // response status represents a client certificate failure.
 func (r *Response) IsCertificateRequired() bool {
 	return r.Status >= StatusCertificateRequired && r.Status < statusSentinel
+}
+
+func (r *Response) statusIsUnknown() bool {
+	return r.Status < StatusInput || r.Status > statusSentinel
+}
+
+func (r *Response) MediaType() (string, map[string]string, error) {
+	if !r.IsSuccess() {
+		return "", nil, ErrUnknownStatus
+	}
+
+	mt, params, err := mime.ParseMediaType(r.Meta)
+
+	// => gemini://gemini.conman.org/test/torture/0017
+	// => gemini://gemini.conman.org/test/torture/0018
+	if params != nil && params["charset"] != "" {
+		params["charset"] = strings.ToLower(params["charset"])
+	}
+
+	return mt, params, err
 }
