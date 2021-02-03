@@ -3,7 +3,9 @@ package gemini
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"strconv"
 	"strings"
 )
@@ -43,6 +45,38 @@ type Response struct {
 	Meta   string
 
 	Body io.ReadCloser
+}
+
+func NewResponse(status int, meta string, body io.ReadCloser) *Response {
+	return &Response{
+		Status: status,
+		Meta:   meta,
+		Body:   body,
+	}
+}
+
+func NewResponseString(status int, meta string, body string) *Response {
+	return NewResponse(status, meta, ioutil.NopCloser(strings.NewReader(body)))
+}
+
+func (r *Response) Header() string {
+	return fmt.Sprintf("%2d %s", r.Status, r.Meta)
+}
+
+// WriteTo implements io.WriterTo for Response.
+func (r *Response) WriteTo(w io.Writer) (int64, error) {
+	var bytesWritten int64
+
+	n, err := w.Write([]byte(r.Header() + "\r\n"))
+	if err != nil {
+		return 0, err
+	}
+	bytesWritten += int64(n)
+
+	n64, err := io.Copy(w, r.Body)
+	bytesWritten += n64
+
+	return bytesWritten, err
 }
 
 func ReadResponse(conn io.ReadCloser) (*Response, error) {
