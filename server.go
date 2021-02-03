@@ -109,7 +109,7 @@ func StripPrefix(prefix string, h Handler) Handler {
 			*r2.URL = *r.URL
 			r2.URL.Path = p
 
-			return h.ServeGemini(ctx, r)
+			return h.ServeGemini(ctx, r2)
 		} else {
 			return nil
 		}

@@ -9,7 +9,8 @@ type ServeMux struct {
 
 func NewServeMux() *ServeMux {
 	return &ServeMux{
-		root: newNode(),
+		RedirectSlash: true,
+		root:          newNode(),
 	}
 }
 

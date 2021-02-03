@@ -2,6 +2,7 @@ package gemini
 
 import (
 	"context"
+	"fmt"
 	"strings"
 )
 
@@ -27,11 +28,17 @@ func newNode() *node {
 
 func (n *node) Handle(pattern string, h Handler) {
 	pattern = cleanPath(pattern)
+	hasRest := strings.HasSuffix(pattern, "/:rest")
 	hasSlash := strings.HasSuffix(pattern, "/")
 
 	target := n.ensureNode(pattern)
 
-	if hasSlash {
+	if hasRest {
+		if target.catchAllHandler != nil {
+			panic("overlapping catchAllHandlers")
+		}
+		target.catchAllHandler = h
+	} else if hasSlash {
 		if target.slashHandler != nil {
 			panic("overlapping handlers")
 		}
@@ -107,20 +114,25 @@ func (n *node) matchImpl(origPath string, path string, allowRedirect bool, hasSl
 	}
 
 	if path == "" {
-		// TODO: optionally redirect to the opposite if the handler exists
 		if hasSlash {
-			if allowRedirect && n.slashHandler == nil && n.handler != nil {
+			if n.slashHandler != nil {
+				return params, n.slashHandler
+			}
+
+			if allowRedirect && n.handler != nil {
 				return params, HandlerFunc(redirectRemoveSlash)
 			}
-
-			return params, n.slashHandler
 		} else {
-			if allowRedirect && n.handler == nil && n.slashHandler != nil {
-				return params, HandlerFunc(redirectAddSlash)
+			if n.handler != nil {
+				return params, n.handler
 			}
 
-			return params, n.handler
+			if allowRedirect && n.slashHandler != nil {
+				return params, HandlerFunc(redirectAddSlash)
+			}
 		}
+
+		return params, n.catchAllHandler
 	}
 
 	next, rest := pathSegment(path)
@@ -128,16 +140,27 @@ func (n *node) matchImpl(origPath string, path string, allowRedirect bool, hasSl
 	// First attempt static routes.
 	retParams, retHandler := n.children[next].matchImpl(origPath, rest, allowRedirect, hasSlash, params)
 	if retHandler != nil {
+		fmt.Println("child", next)
 		return retParams, retHandler
 	}
 
 	// If there isn't a matching static route, attempt a param route.
 	retParams, retHandler = n.param.matchImpl(origPath, rest, allowRedirect, hasSlash, append(params, next))
 	if retHandler != nil {
+		fmt.Println("param")
 		return retParams, retHandler
 	}
 
-	// Finally fall back to the catch all handler if it exists.
+	fmt.Println("catch all", n.catchAllHandler)
+
+	// Finally fall back to the catch all handler if it exists. Note that we
+	// also redirect to include a slash because all catchAllHandlers should
+	// match after a path separator. This fixes a number of edge cases with the
+	// gemini.FileServer when using it with gemini.StripPrefix.
+	if allowRedirect && !hasSlash {
+		return params, HandlerFunc(redirectAddSlash)
+	}
+
 	return append(params, rest), n.catchAllHandler
 }
 
@@ -147,4 +170,30 @@ func redirectAddSlash(ctx context.Context, r *Request) *Response {
 
 func redirectRemoveSlash(ctx context.Context, r *Request) *Response {
 	return NewResponse(StatusRedirect, strings.TrimSuffix(cleanPath(r.URL.Path), "/"))
+}
+
+// Print is used for debugging the tree
+func (n *node) print(prefix string) {
+	//fmt.Println("Node at", prefix)
+	//fmt.Println(n.children)
+
+	if n.catchAllHandler != nil {
+		fmt.Println(prefix, "catchAll")
+	}
+
+	if n.handler != nil {
+		fmt.Println(prefix)
+	}
+
+	if n.slashHandler != nil {
+		fmt.Println(prefix + "/")
+	}
+
+	for k, v := range n.children {
+		v.print(prefix + "/" + k)
+	}
+
+	if n.param != nil {
+		n.param.print(prefix + "/:param")
+	}
 }

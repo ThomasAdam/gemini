@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"mime"
 
 	"gopkg.in/gemini"
 )
@@ -45,10 +46,15 @@ func printRequest(ctx context.Context, r *gemini.Request) *gemini.Response {
 func main() {
 	flag.Parse()
 
+	_ = mime.AddExtensionType(".gmi", "text/gemini")
+	_ = mime.AddExtensionType(".gemini", "text/gemini")
+	_ = mime.AddExtensionType(".md", "text/markdown")
+	_ = mime.AddExtensionType(".go", "text/plain")
+
 	mux := gemini.NewServeMux()
-	mux.RedirectSlash = true
 
 	mux.Handle("/hello/:world", gemini.HandlerFunc(printRequest))
+	mux.Handle("/files/:rest", gemini.StripPrefix("/files", gemini.FileServer(gemini.Dir("."))))
 
 	server := gemini.Server{
 		TLS: &tls.Config{
