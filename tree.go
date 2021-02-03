@@ -3,6 +3,7 @@ package gemini
 import (
 	"context"
 	"fmt"
+	"path"
 	"strings"
 )
 
@@ -59,8 +60,8 @@ func (n *node) Route(pattern string, fn func(r Router)) Router {
 	return target
 }
 
-func (n *node) ensureNode(path string) *node {
-	return n.ensureNodeImpl(strings.Trim(cleanPath(path), "/"))
+func (n *node) ensureNode(targetPath string) *node {
+	return n.ensureNodeImpl(strings.Trim(path.Clean(targetPath), "/"))
 }
 
 func (n *node) ensureNodeImpl(path string) *node {
@@ -93,8 +94,8 @@ func (n *node) ensureNodeImpl(path string) *node {
 	return target.ensureNodeImpl(rest)
 }
 
-func (n *node) match(path string) ([]string, Handler) {
-	return n.matchImpl(strings.Trim(cleanPath(path), "/"), nil)
+func (n *node) match(targetPath string) ([]string, Handler) {
+	return n.matchImpl(strings.Trim(path.Clean(targetPath), "/"), nil)
 }
 
 func (n *node) matchImpl(path string, params []string) ([]string, Handler) {
