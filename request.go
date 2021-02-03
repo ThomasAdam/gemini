@@ -22,7 +22,7 @@ type Request struct {
 }
 
 func (r *Request) String() string {
-	return r.URL.String()
+	return r.URL.String() + "\r\n"
 }
 
 // NewRequest returns a new Request given a URL in string form.
