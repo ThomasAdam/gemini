@@ -46,6 +46,7 @@ func main() {
 	flag.Parse()
 
 	mux := gemini.NewServeMux()
+	mux.RedirectSlash = true
 
 	mux.Handle("/hello/:world", gemini.HandlerFunc(printRequest))
 

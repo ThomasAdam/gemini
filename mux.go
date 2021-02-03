@@ -3,7 +3,8 @@ package gemini
 import "context"
 
 type ServeMux struct {
-	root *node
+	RedirectSlash bool
+	root          *node
 }
 
 func NewServeMux() *ServeMux {
@@ -13,7 +14,13 @@ func NewServeMux() *ServeMux {
 }
 
 func (mux *ServeMux) ServeGemini(ctx context.Context, r *Request) *Response {
-	return mux.root.ServeGemini(ctx, r)
+	params, handler := mux.root.match(r.URL.Path, mux.RedirectSlash)
+	if handler == nil {
+		return nil
+	}
+
+	ctx = CtxWithParams(ctx, params)
+	return handler.ServeGemini(ctx, r)
 }
 
 func (mux *ServeMux) Handle(pattern string, h Handler) {
@@ -29,7 +36,6 @@ func (mux *ServeMux) Route(pattern string, fn func(r Router)) Router {
 }
 
 type Router interface {
-	Handler
 	Handle(pattern string, h Handler)
 	NotFound(h Handler)
 	Route(pattern string, fn func(r Router)) Router

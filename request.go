@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"net/url"
-	"path"
 	"strings"
 )
 
@@ -46,7 +45,7 @@ func NewRequestURL(url *url.URL) *Request {
 		url.Scheme = "gemini"
 	}
 
-	url.Path = path.Clean(url.Path)
+	url.Path = cleanPath(url.Path)
 
 	return &Request{
 		URL: url,

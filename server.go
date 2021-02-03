@@ -5,6 +5,8 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"net/url"
+	"strings"
 	"time"
 )
 
@@ -92,4 +94,24 @@ func (s *Server) serve(rwc *tls.Conn) {
 		fmt.Println(err)
 		return
 	}
+}
+
+func StripPrefix(prefix string, h Handler) Handler {
+	if prefix == "" {
+		return h
+	}
+
+	return HandlerFunc(func(ctx context.Context, r *Request) *Response {
+		if p := strings.TrimPrefix(r.URL.Path, prefix); len(p) < len(r.URL.Path) {
+			r2 := new(Request)
+			*r2 = *r
+			r2.URL = new(url.URL)
+			*r2.URL = *r.URL
+			r2.URL.Path = p
+
+			return h.ServeGemini(ctx, r)
+		} else {
+			return nil
+		}
+	})
 }

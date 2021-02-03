@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -19,7 +20,16 @@ var identityKeyFile = flag.String("identity-key", "", "identity key file to use 
 func main() {
 	flag.Parse()
 
-	client := gemini.Client{}
+	client := gemini.Client{
+		CheckRedirect: func(req *gemini.Request, via []*gemini.Request) error {
+			fmt.Println("Redirect:", req.URL)
+			if len(via) >= 5 {
+				return errors.New("too many redirects")
+			}
+
+			return nil
+		},
+	}
 
 	if *identityCertFile != "" && *identityKeyFile != "" {
 		cert, err := tls.LoadX509KeyPair(*identityCertFile, *identityKeyFile)
