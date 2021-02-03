@@ -47,7 +47,11 @@ type Response struct {
 	Body io.ReadCloser
 }
 
-func NewResponse(status int, meta string, body io.ReadCloser) *Response {
+func NewResponse(status int, meta string) *Response {
+	return NewResponseBody(status, meta, nil)
+}
+
+func NewResponseBody(status int, meta string, body io.ReadCloser) *Response {
 	return &Response{
 		Status: status,
 		Meta:   meta,
@@ -56,7 +60,7 @@ func NewResponse(status int, meta string, body io.ReadCloser) *Response {
 }
 
 func NewResponseString(status int, meta string, body string) *Response {
-	return NewResponse(status, meta, ioutil.NopCloser(strings.NewReader(body)))
+	return NewResponseBody(status, meta, ioutil.NopCloser(strings.NewReader(body)))
 }
 
 func (r *Response) Header() string {
@@ -65,7 +69,7 @@ func (r *Response) Header() string {
 
 // WriteTo implements io.WriterTo for Response.
 func (r *Response) WriteTo(w io.Writer) (int64, error) {
-	var bytesWritten int64
+	var bytesWritten, n64 int64
 
 	n, err := w.Write([]byte(r.Header() + "\r\n"))
 	if err != nil {
@@ -73,8 +77,10 @@ func (r *Response) WriteTo(w io.Writer) (int64, error) {
 	}
 	bytesWritten += int64(n)
 
-	n64, err := io.Copy(w, r.Body)
-	bytesWritten += n64
+	if r.IsSuccess() {
+		n64, err = io.Copy(w, r.Body)
+		bytesWritten += n64
+	}
 
 	return bytesWritten, err
 }

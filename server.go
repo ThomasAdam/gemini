@@ -1,20 +1,23 @@
 package gemini
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
 	"time"
 )
 
+type Params map[string]string
+
 type Handler interface {
-	Handle(*Request) (*Response, error)
+	ServeGemini(context.Context, *Request) *Response
 }
 
-type HandlerFunc func(*Request) (*Response, error)
+type HandlerFunc func(context.Context, *Request) *Response
 
-func (hf HandlerFunc) Handle(r *Request) (*Response, error) {
-	return hf(r)
+func (hf HandlerFunc) ServeGemini(ctx context.Context, r *Request) *Response {
+	return hf(ctx, r)
 }
 
 type Server struct {
@@ -75,11 +78,14 @@ func (s *Server) serve(rwc *tls.Conn) {
 		return
 	}
 
-	resp, err := s.Handler.Handle(req)
-	if err != nil {
-		fmt.Println(err)
-		return
+	fmt.Printf("--> %s\n", req.URL)
+
+	resp := s.Handler.ServeGemini(context.TODO(), req)
+	if resp == nil {
+		resp = NewResponse(StatusNotFound, "not found")
 	}
+
+	fmt.Printf("<-- %d %s\n", resp.Status, resp.Meta)
 
 	_, err = resp.WriteTo(rwc)
 	if err != nil {

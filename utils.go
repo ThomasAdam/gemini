@@ -3,6 +3,8 @@ package gemini
 import (
 	"bufio"
 	"io"
+	"path"
+	"strings"
 )
 
 type wrappedBufferedReader struct {
@@ -20,4 +22,37 @@ func (b *wrappedBufferedReader) Close() error {
 
 func (b *wrappedBufferedReader) WriteTo(w io.Writer) (int64, error) {
 	return b.buf.WriteTo(w)
+}
+
+func cleanPath(p string) string {
+	if p == "" {
+		return "/"
+	}
+
+	if p[0] != '/' {
+		p = "/" + p
+	}
+
+	np := path.Clean(p)
+
+	// path.Clean removes trailing slash except for root;
+	// put the trailing slash back if necessary.
+	if p[len(p)-1] == '/' && np != "/" {
+		// Fast path for common case of p being the string we want:
+		if len(p) == len(np)+1 && strings.HasPrefix(p, np) {
+			np = p
+		} else {
+			np += "/"
+		}
+	}
+
+	return np
+}
+
+func pathSegment(path string) (string, string) {
+	split := strings.SplitN(path, "/", 2)
+	if len(split) != 2 {
+		return split[0], ""
+	}
+	return split[0], split[1]
 }
