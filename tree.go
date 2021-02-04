@@ -140,18 +140,14 @@ func (n *node) matchImpl(origPath string, path string, allowRedirect bool, hasSl
 	// First attempt static routes.
 	retParams, retHandler := n.children[next].matchImpl(origPath, rest, allowRedirect, hasSlash, params)
 	if retHandler != nil {
-		fmt.Println("child", next)
 		return retParams, retHandler
 	}
 
 	// If there isn't a matching static route, attempt a param route.
 	retParams, retHandler = n.param.matchImpl(origPath, rest, allowRedirect, hasSlash, append(params, next))
 	if retHandler != nil {
-		fmt.Println("param")
 		return retParams, retHandler
 	}
-
-	fmt.Println("catch all", n.catchAllHandler)
 
 	// Finally fall back to the catch all handler if it exists. Note that we
 	// also redirect to include a slash because all catchAllHandlers should
