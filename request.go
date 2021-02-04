@@ -57,7 +57,8 @@ func NewRequestURL(url *url.URL) *Request {
 	}
 }
 
-func ReadRequest(conn io.ReadCloser) (*Request, error) {
+// ReadRequest reads and returns a Gemini request from r.
+func ReadRequest(conn io.Reader) (*Request, error) {
 	reader := bufio.NewReader(conn)
 	line, err := reader.ReadString('\n')
 	if err != nil {

@@ -63,7 +63,7 @@ func main() {
     mux := gemini.NewServeMux()
 
     // A simple dynamic handler
-    mux.Handle("/hello/:world", gemini.HandlerFunc(func (ctx context.Context, r *gemini.Request, w gemini.ResponseWriter) {
+    mux.Handle("/hello/:world", gemini.HandlerFunc(func (ctx context.Context, w gemini.ResponseWriter, r *gemini.Request) {
         params := gemini.CtxParams(ctx)
         if len(params) != 1 {
             gemini.WriteStatus(gemini.StatusCGIError, "internal error")
@@ -86,8 +86,6 @@ func main() {
 
     server := gemini.Server{
         TLS: &tls.Config{
-            MinVersion:         tls.VersionTLS12,
-            InsecureSkipVerify: true,
             ClientAuth:         tls.RequestClientCert,
             Certificates:       []tls.Certificate{cert},
         },

@@ -89,7 +89,7 @@ func FileServer(root FileSystem) Handler {
 	return &fileHandler{root}
 }
 
-func (f *fileHandler) ServeGemini(ctx context.Context, r *Request, w ResponseWriter) {
+func (f *fileHandler) ServeGemini(ctx context.Context, w ResponseWriter, r *Request) {
 	upath := r.URL.Path
 
 	if !strings.HasPrefix(upath, "/") {
@@ -97,11 +97,11 @@ func (f *fileHandler) ServeGemini(ctx context.Context, r *Request, w ResponseWri
 		r.URL.Path = upath
 	}
 
-	serveFile(ctx, r, w, f.root, cleanPath(upath))
+	serveFile(ctx, w, r, f.root, cleanPath(upath))
 }
 
 // name is '/'-separated, not filepath.Separator.
-func serveFile(ctx context.Context, r *Request, w ResponseWriter, fs FileSystem, name string) {
+func serveFile(ctx context.Context, w ResponseWriter, r *Request, fs FileSystem, name string) {
 	const indexPage = "/index.gmi"
 
 	f, err := fs.Open(name)

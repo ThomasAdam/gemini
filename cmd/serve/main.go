@@ -15,7 +15,7 @@ import (
 var identityCertFile = flag.String("identity-cert", "", "identity cert file to use for requests")
 var identityKeyFile = flag.String("identity-key", "", "identity key file to use for requests")
 
-func printRequest(ctx context.Context, r *gemini.Request, w gemini.ResponseWriter) {
+func printRequest(ctx context.Context, w gemini.ResponseWriter, r *gemini.Request) {
 	params := gemini.CtxParams(ctx)
 	if len(params) != 1 {
 		w.WriteStatus(gemini.StatusTemporaryFailure, "internal error")
@@ -55,11 +55,7 @@ func main() {
 	mux.Handle("/files/:rest", gemini.StripPrefix("/files", gemini.FileServer(gemini.Dir("."))))
 
 	server := gemini.Server{
-		TLS: &tls.Config{
-			MinVersion:         tls.VersionTLS12,
-			InsecureSkipVerify: true,
-			ClientAuth:         tls.RequestClientCert,
-		},
+		TLS:     &tls.Config{},
 		Handler: mux,
 	}
 

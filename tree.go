@@ -6,15 +6,14 @@ import (
 	"strings"
 )
 
-type nodeType uint8
-
-const (
-	ntStatic nodeType = iota
-	ntParam
-	ntCatchAll
-)
-
 type node struct {
+	// This reference to a given ServeMux should only be used for settings.
+	mux *ServeMux
+
+	// Storing a reference to the parent is used for finding the most relevant
+	// catchAllHandler.
+	parent *node
+
 	handler         Handler
 	slashHandler    Handler
 	catchAllHandler Handler
@@ -22,8 +21,22 @@ type node struct {
 	param           *node
 }
 
-func newNode() *node {
-	return &node{children: make(map[string]*node)}
+func newNode(parent *node) *node {
+	ret := &node{children: make(map[string]*node), parent: parent}
+	if parent != nil {
+		ret.mux = parent.mux
+	}
+	return ret
+}
+
+func (n *node) ServeGemini(ctx context.Context, w ResponseWriter, r *Request) {
+	params, handler := n.match(r.URL.Path, n.mux.RedirectSlash)
+	if handler == nil {
+		return
+	}
+
+	ctx = CtxWithParams(ctx, params)
+	handler.ServeGemini(ctx, w, r)
 }
 
 func (n *node) Handle(pattern string, h Handler) {
@@ -87,7 +100,7 @@ func (n *node) ensureNodeImpl(path string) *node {
 
 	if strings.HasPrefix(next, ":") {
 		if n.param == nil {
-			n.param = newNode()
+			n.param = newNode(n)
 		}
 
 		return n.param.ensureNodeImpl(rest)
@@ -95,7 +108,7 @@ func (n *node) ensureNodeImpl(path string) *node {
 
 	target := n.children[next]
 	if target == nil {
-		n.children[next] = newNode()
+		n.children[next] = newNode(n)
 		target = n.children[next]
 	}
 
@@ -157,14 +170,22 @@ func (n *node) matchImpl(origPath string, path string, allowRedirect bool, hasSl
 		return params, HandlerFunc(redirectAddSlash)
 	}
 
-	return append(params, rest), n.catchAllHandler
+	// Traverse back up the tree to find the most relevant catchAllHandler.
+	target := n
+	handler := n.catchAllHandler
+	for handler == nil && target.parent != nil {
+		target = target.parent
+		handler = target.catchAllHandler
+	}
+
+	return append(params, rest), handler
 }
 
-func redirectAddSlash(ctx context.Context, r *Request, w ResponseWriter) {
+func redirectAddSlash(ctx context.Context, w ResponseWriter, r *Request) {
 	w.WriteStatus(StatusRedirect, cleanPath(r.URL.Path)+"/")
 }
 
-func redirectRemoveSlash(ctx context.Context, r *Request, w ResponseWriter) {
+func redirectRemoveSlash(ctx context.Context, w ResponseWriter, r *Request) {
 	w.WriteStatus(StatusRedirect, strings.TrimSuffix(cleanPath(r.URL.Path), "/"))
 }
 

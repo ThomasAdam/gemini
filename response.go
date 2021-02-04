@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime"
 	"strconv"
 	"strings"
@@ -44,24 +43,7 @@ const (
 type Response struct {
 	Status int
 	Meta   string
-
-	Body io.ReadCloser
-}
-
-func NewResponse(status int, meta string) *Response {
-	return NewResponseBody(status, meta, nil)
-}
-
-func NewResponseBody(status int, meta string, body io.ReadCloser) *Response {
-	return &Response{
-		Status: status,
-		Meta:   meta,
-		Body:   body,
-	}
-}
-
-func NewResponseString(status int, meta string, body string) *Response {
-	return NewResponseBody(status, meta, ioutil.NopCloser(strings.NewReader(body)))
+	Body   io.ReadCloser
 }
 
 func (r *Response) Header() string {
@@ -86,6 +68,9 @@ func (r *Response) WriteTo(w io.Writer) (int64, error) {
 	return bytesWritten, err
 }
 
+// ReadResponse reads and returns a Gemini response from r. conn will be closed
+// afterwords. On success, clients must call resp.Body.Close when finished
+// reading resp.Body.
 func ReadResponse(conn io.ReadCloser) (*Response, error) {
 	reader := bufio.NewReader(conn)
 	line, err := reader.ReadString('\n')
@@ -161,6 +146,11 @@ func (r *Response) statusIsUnknown() bool {
 	return r.Status < StatusInput || r.Status > statusSentinel
 }
 
+// MediaType attempts to parse and normalize the media type of a success
+// response.
+//
+// The returned values will be the media type, the params, and possibly an
+// error.
 func (r *Response) MediaType() (string, map[string]string, error) {
 	if !r.IsSuccess() {
 		return "", nil, ErrUnknownStatus
