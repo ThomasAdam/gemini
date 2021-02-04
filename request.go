@@ -3,6 +3,7 @@ package gemini
 import (
 	"bufio"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"io"
 	"net/url"
@@ -16,9 +17,13 @@ type Request struct {
 	// Request URL are different.
 	URL *url.URL
 
-	// TLS allows Gemini servers and other software to record information about
-	// the TLS connection on which the request was received.
-	TLS *tls.ConnectionState
+	// ServerName allows you to override the server name sent via SNI. This is
+	// generally only needed for proxy requests.
+	ServerName string
+
+	// Identity allows Gemini servers and other software to record information
+	// the certificate the client is using to connect.
+	Identity *x509.Certificate
 }
 
 func (r *Request) String() string {
@@ -76,9 +81,18 @@ func ReadRequest(conn io.ReadCloser) (*Request, error) {
 		URL: url,
 	}
 
+	// ServerName defaults to the Hostname, but it can be overridden from the
+	// tls.Conn data.
+	ret.ServerName = url.Hostname()
+
 	if tc, ok := conn.(*tls.Conn); ok {
 		state := tc.ConnectionState()
-		ret.TLS = &state
+
+		ret.ServerName = state.ServerName
+
+		if len(state.PeerCertificates) > 0 {
+			ret.Identity = state.PeerCertificates[0]
+		}
 	}
 
 	return ret, nil

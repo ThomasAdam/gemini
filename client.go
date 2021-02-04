@@ -49,12 +49,34 @@ func (c *Client) checkRedirect(req *Request, via []*Request) error {
 	return fn(req, via)
 }
 
+// Get parses a URL, sends it as a Gemini request and returns a Gemini response,
+// following policy (such as redirects, auth) as configured on the client.
+//
+// This currently uses context.Background and has no other timeouts.
+func (c *Client) Get(rawUrl string) (*Response, error) {
+	return c.GetContext(context.Background(), rawUrl)
+}
+
+// GetContext parses a URL, sends it as a Gemini request and returns a Gemini
+// response, following policy (such as redirects, auth) as configured on the
+// client.
+//
+// The context is only used up to the response status. The response body needs
+// to be handled separately.
+func (c *Client) GetContext(ctx context.Context, rawUrl string) (*Response, error) {
+	req, err := NewRequest(rawUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.DoContext(ctx, req)
+}
+
 // Do sends a Gemini request and returns a Gemini response, following policy
 // (such as redirects, auth) as configured on the client.
 //
 // This currently uses context.Background and has no other timeouts.
 func (c *Client) Do(req *Request) (*Response, error) {
-	// See doContext for more details.
 	return c.DoContext(context.Background(), req)
 }
 

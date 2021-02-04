@@ -23,11 +23,9 @@ func (hf HandlerFunc) ServeGemini(ctx context.Context, r *Request) *Response {
 }
 
 type Server struct {
-	Addr string
-
+	Addr    string
 	Handler Handler
-
-	TLS *tls.Config
+	TLS     *tls.Config
 }
 
 func (s *Server) Serve(l net.Listener) error {

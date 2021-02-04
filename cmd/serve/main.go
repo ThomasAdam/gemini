@@ -21,11 +21,9 @@ func printRequest(ctx context.Context, r *gemini.Request) *gemini.Response {
 		return gemini.NewResponse(gemini.StatusTemporaryFailure, "internal error")
 	}
 
-	if len(r.TLS.PeerCertificates) != 0 {
-		cert := r.TLS.PeerCertificates[0]
-
+	if r.Identity != nil {
 		hash := sha256.New()
-		_, _ = hash.Write(cert.Raw)
+		_, _ = hash.Write(r.Identity.Raw)
 		fingerprint := hash.Sum(nil)
 
 		var buf bytes.Buffer
@@ -77,5 +75,4 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
-
 }
