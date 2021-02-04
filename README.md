@@ -63,15 +63,14 @@ func main() {
     mux := gemini.NewServeMux()
 
     // A simple dynamic handler
-    mux.Handle("/hello/:world", gemini.HandlerFunc(func (ctx context.Context, r *gemini.Request) *gemini.Response {
+    mux.Handle("/hello/:world", gemini.HandlerFunc(func (ctx context.Context, r *gemini.Request, w gemini.ResponseWriter) {
         params := gemini.CtxParams(ctx)
         if len(params) != 1 {
-            return gemini.NewResponse(gemini.StatusCGIError, "internal error")
+            gemini.WriteStatus(gemini.StatusCGIError, "internal error")
+            return
         }
 
-        return gemini.NewResponseString(
-            gemini.StatusSuccess, "success",
-            fmt.Sprintf("Hello %s!\n", params[0]))
+        fmt.Fprintf(w, "Hello %s\n", params[0])
     }))
 
     // Serve all files from `/tmp` out of the path `/files` via gemini.
@@ -113,6 +112,7 @@ func main() {
     - [x] TLS implementation
     - [x] Basic routing
     - [x] FileSystem implementation, based on net/http.
+    - [ ] Add logging interface
     - [ ] Basic middleware - logging, recoverer
     - [ ] Integrate FileSystem with Go 1.16's FS.
     - [ ] Conveniences for dealing with client certs
@@ -123,3 +123,6 @@ func main() {
     - [ ] Writer
 - [ ] API cleanup
     - [x] Simplify TLS cert handling
+    - [x] Switch to a ResponseWriter pattern
+- [ ] Various cleanup
+    - [ ] Add tests

@@ -160,12 +160,12 @@ func (n *node) matchImpl(origPath string, path string, allowRedirect bool, hasSl
 	return append(params, rest), n.catchAllHandler
 }
 
-func redirectAddSlash(ctx context.Context, r *Request) *Response {
-	return NewResponse(StatusRedirect, cleanPath(r.URL.Path)+"/")
+func redirectAddSlash(ctx context.Context, r *Request, w ResponseWriter) {
+	w.WriteStatus(StatusRedirect, cleanPath(r.URL.Path)+"/")
 }
 
-func redirectRemoveSlash(ctx context.Context, r *Request) *Response {
-	return NewResponse(StatusRedirect, strings.TrimSuffix(cleanPath(r.URL.Path), "/"))
+func redirectRemoveSlash(ctx context.Context, r *Request, w ResponseWriter) {
+	w.WriteStatus(StatusRedirect, strings.TrimSuffix(cleanPath(r.URL.Path), "/"))
 }
 
 // Print is used for debugging the tree

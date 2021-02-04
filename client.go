@@ -14,11 +14,12 @@ func defaultCheckRedirect(req *Request, via []*Request) error {
 	if len(via) >= 5 {
 		return errors.New("too many redirects")
 	}
+
 	return nil
 }
 
-// Client is a Gemini client. Its zero value (DefaultClient) is a usable client
-// that uses DefaultTransport.
+// Client is a Gemini client. Its zero value (also stored in DefaultClient) is a
+// usable client.
 //
 // Clients are safe for concurrent use by multiple goroutines.
 type Client struct {
@@ -201,7 +202,7 @@ func (c *Client) doRequest(ctx context.Context, r *Request) (*Response, error) {
 		// The transaction is done, so for good measure, we close our writing side
 		// of the connection.
 		//
-		// NOTE: this seems to break for a number of servers, so it's commented out
+		// XXX: this seems to break for a number of servers, so it's commented out
 		// for now.
 
 		/*

@@ -14,14 +14,14 @@ func NewServeMux() *ServeMux {
 	}
 }
 
-func (mux *ServeMux) ServeGemini(ctx context.Context, r *Request) *Response {
+func (mux *ServeMux) ServeGemini(ctx context.Context, r *Request, w ResponseWriter) {
 	params, handler := mux.root.match(r.URL.Path, mux.RedirectSlash)
 	if handler == nil {
-		return nil
+		return
 	}
 
 	ctx = CtxWithParams(ctx, params)
-	return handler.ServeGemini(ctx, r)
+	handler.ServeGemini(ctx, r, w)
 }
 
 func (mux *ServeMux) Handle(pattern string, h Handler) {

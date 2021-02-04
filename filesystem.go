@@ -1,11 +1,9 @@
 package gemini
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"io"
-	"io/ioutil"
 	"mime"
 	"net/url"
 	"os"
@@ -91,7 +89,7 @@ func FileServer(root FileSystem) Handler {
 	return &fileHandler{root}
 }
 
-func (f *fileHandler) ServeGemini(ctx context.Context, r *Request) *Response {
+func (f *fileHandler) ServeGemini(ctx context.Context, r *Request, w ResponseWriter) {
 	upath := r.URL.Path
 
 	if !strings.HasPrefix(upath, "/") {
@@ -99,27 +97,23 @@ func (f *fileHandler) ServeGemini(ctx context.Context, r *Request) *Response {
 		r.URL.Path = upath
 	}
 
-	return serveFile(ctx, r, f.root, cleanPath(upath))
+	serveFile(ctx, r, w, f.root, cleanPath(upath))
 }
 
 // name is '/'-separated, not filepath.Separator.
-func serveFile(ctx context.Context, r *Request, fs FileSystem, name string) (resp *Response) {
+func serveFile(ctx context.Context, r *Request, w ResponseWriter, fs FileSystem, name string) {
 	const indexPage = "/index.gmi"
 
 	f, err := fs.Open(name)
 	if err != nil {
-		resp = NewResponse(StatusPermanentFailure, err.Error())
+		w.WriteStatus(StatusPermanentFailure, err.Error())
 		return
 	}
-	defer func() {
-		if resp == nil || resp.Body == nil {
-			f.Close()
-		}
-	}()
+	defer f.Close()
 
 	d, err := f.Stat()
 	if err != nil {
-		resp = NewResponse(StatusPermanentFailure, err.Error())
+		w.WriteStatus(StatusPermanentFailure, err.Error())
 		return
 	}
 
@@ -128,11 +122,13 @@ func serveFile(ctx context.Context, r *Request, fs FileSystem, name string) (res
 	pathName := r.URL.Path
 	if d.IsDir() {
 		if pathName[len(pathName)-1] != '/' {
-			return NewResponse(StatusRedirect, path.Base(pathName)+"/")
+			w.WriteStatus(StatusRedirect, path.Base(pathName)+"/")
+			return
 		}
 	} else {
 		if pathName[len(pathName)-1] == '/' {
-			return NewResponse(StatusRedirect, "../"+path.Base(pathName))
+			w.WriteStatus(StatusRedirect, "../"+path.Base(pathName))
+			return
 		}
 	}
 
@@ -143,9 +139,7 @@ func serveFile(ctx context.Context, r *Request, fs FileSystem, name string) (res
 		if err == nil {
 			dd, err := ff.Stat()
 			if err == nil {
-				// Close the old file because we're going to overwrite the
-				// reference.
-				_ = f.Close()
+				defer ff.Close()
 
 				name = index
 				d = dd
@@ -158,7 +152,7 @@ func serveFile(ctx context.Context, r *Request, fs FileSystem, name string) (res
 	if d.IsDir() {
 		entries, err := f.Readdir(0)
 		if err != nil {
-			resp = NewResponse(StatusPermanentFailure, err.Error())
+			w.WriteStatus(StatusPermanentFailure, err.Error())
 			return
 		}
 
@@ -171,18 +165,16 @@ func serveFile(ctx context.Context, r *Request, fs FileSystem, name string) (res
 			return entries[i].IsDir()
 		})
 
-		buf := bytes.NewBuffer(nil)
-
 		for _, entry := range entries {
-			buf.WriteString("=> ")
-			buf.WriteString(url.PathEscape(entry.Name()))
+			w.Write([]byte("=> "))
+			w.Write([]byte(url.PathEscape(entry.Name())))
 			if entry.IsDir() {
-				buf.WriteString("/")
+				w.Write([]byte("/"))
 			}
-			buf.WriteString("\n")
+			w.Write([]byte("\n"))
 		}
 
-		return NewResponseBody(StatusSuccess, "text/gemini", ioutil.NopCloser(buf))
+		return
 	}
 
 	mimeType := mime.TypeByExtension(path.Ext(d.Name()))
@@ -190,5 +182,6 @@ func serveFile(ctx context.Context, r *Request, fs FileSystem, name string) (res
 		mimeType = "application/octet-stream"
 	}
 
-	return NewResponseBody(StatusSuccess, mimeType, f)
+	w.WriteStatus(StatusSuccess, mimeType)
+	_, _ = io.Copy(w, f)
 }

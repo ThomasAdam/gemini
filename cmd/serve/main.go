@@ -15,11 +15,14 @@ import (
 var identityCertFile = flag.String("identity-cert", "", "identity cert file to use for requests")
 var identityKeyFile = flag.String("identity-key", "", "identity key file to use for requests")
 
-func printRequest(ctx context.Context, r *gemini.Request) *gemini.Response {
+func printRequest(ctx context.Context, r *gemini.Request, w gemini.ResponseWriter) {
 	params := gemini.CtxParams(ctx)
 	if len(params) != 1 {
-		return gemini.NewResponse(gemini.StatusTemporaryFailure, "internal error")
+		w.WriteStatus(gemini.StatusTemporaryFailure, "internal error")
+		return
 	}
+
+	fmt.Fprintf(w, "Hello %s!\n", params[0])
 
 	if r.Identity != nil {
 		hash := sha256.New()
@@ -33,12 +36,9 @@ func printRequest(ctx context.Context, r *gemini.Request) *gemini.Response {
 			}
 			fmt.Fprintf(&buf, "%02X", f)
 		}
-		fmt.Printf("Fingerprint: %s\n", buf.String())
-	}
 
-	return gemini.NewResponseString(
-		gemini.StatusSuccess, "success",
-		fmt.Sprintf("Hello %s!\n", params[0]))
+		fmt.Fprintf(w, "\nFingerprint: %s\n", buf.String())
+	}
 }
 
 func main() {
