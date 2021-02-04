@@ -1,6 +1,6 @@
 # gemini
 
-[![GoDoc](https://img.shields.io/badge/doc-GoDoc-blue.svg)](https://godoc.org/github.com/go-gemini/gemini)
+[![GoDoc](https://img.shields.io/badge/doc-GoDoc-007d9c.svg)](https://pkg.go.dev/gopkg.in/gemini.v0)
 
 This is an in-progress gemini client and server package for go. The design is based on a combination of `net/http` and [chi](https://github.com/go-chi/chi).
 
