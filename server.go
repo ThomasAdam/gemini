@@ -30,17 +30,10 @@ type Server struct {
 	TLS *tls.Config
 }
 
-func (s *Server) ListenAndServe() error {
-	addr := s.Addr
-	if addr == "" {
-		addr = ":1965"
-	}
-
-	l, err := tls.Listen("tcp", addr, s.TLS)
-	if err != nil {
-		return err
-	}
+func (s *Server) Serve(l net.Listener) error {
 	defer l.Close()
+
+	tlsConfig := s.TLS.Clone()
 
 	var tempDelay time.Duration // how long to sleep on accept failure
 
@@ -65,10 +58,24 @@ func (s *Server) ListenAndServe() error {
 			return err
 		}
 
-		rwc := rw.(*tls.Conn)
+		rwc := tls.Server(rw, tlsConfig)
 
 		go s.serve(rwc)
 	}
+}
+
+func (s *Server) ListenAndServe() error {
+	addr := s.Addr
+	if addr == "" {
+		addr = ":1965"
+	}
+
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		return err
+	}
+
+	return s.Serve(l)
 }
 
 func (s *Server) serve(rwc *tls.Conn) {

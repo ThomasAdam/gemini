@@ -1,6 +1,6 @@
 package gemini
 
-// DefaultClient is the default Client and is used by Get, and Do.
+// DefaultClient is the Client is used by the shortcuts Get, and Do.
 var DefaultClient = &Client{}
 
 // Get is a wrapper around DefaultClient.Do which also parses the given URL.

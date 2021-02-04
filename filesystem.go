@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"mime"
@@ -127,7 +126,6 @@ func serveFile(ctx context.Context, r *Request, fs FileSystem, name string) (res
 	// redirect to canonical path: / at end of directory url
 	// r.URL.Path always begins with /
 	pathName := r.URL.Path
-	fmt.Println(name, pathName)
 	if d.IsDir() {
 		if pathName[len(pathName)-1] != '/' {
 			return NewResponse(StatusRedirect, path.Base(pathName)+"/")

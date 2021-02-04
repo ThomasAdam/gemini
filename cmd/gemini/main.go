@@ -8,7 +8,7 @@ import (
 	"io"
 	"os"
 
-	"gopkg.in/gemini"
+	"gopkg.in/gemini.v0"
 )
 
 // TODO: gemini.conman.org/test/torture/

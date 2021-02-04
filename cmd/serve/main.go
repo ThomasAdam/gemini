@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"mime"
 
-	"gopkg.in/gemini"
+	"gopkg.in/gemini.v0"
 )
 
 var identityCertFile = flag.String("identity-cert", "", "identity cert file to use for requests")
