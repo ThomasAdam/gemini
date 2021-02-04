@@ -13,10 +13,11 @@ This package aims to implement version `0.14.3` of the [Gemini spec](https://gem
 - [x] Client implementation
     - [x] Basic request
     - [x] Client auth
-- [ ] Server implementation
+- [x] Server implementation
     - [x] TLS implementation
     - [x] Basic routing
-    - [ ] FileSystem implementation, possibly integrating with Go 1.16's FS.
+    - [x] FileSystem implementation, based on net/http.
+    - [ ] Integrate FileSystem with Go 1.16's FS.
 - [ ] Gemtext implementation
     - [ ] Parser
     - [ ] Writer

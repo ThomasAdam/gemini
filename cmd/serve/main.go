@@ -25,7 +25,7 @@ func printRequest(ctx context.Context, r *gemini.Request) *gemini.Response {
 		cert := r.TLS.PeerCertificates[0]
 
 		hash := sha256.New()
-		hash.Write(cert.Raw)
+		_, _ = hash.Write(cert.Raw)
 		fingerprint := hash.Sum(nil)
 
 		var buf bytes.Buffer
