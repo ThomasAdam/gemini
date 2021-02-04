@@ -112,12 +112,18 @@ func (s *Server) ListenAndServe() error {
 }
 
 func (s *Server) serve(rwc *tls.Conn) {
+	writer := newResponseWriter(rwc)
+
 	defer func() {
 		if err := recover(); err != nil && err != ErrAbortHandler {
 			const size = 64 << 10
 			buf := make([]byte, size)
 			buf = buf[:runtime.Stack(buf, false)]
 			fmt.Printf("gemini: panic serving %v: %v\n%s", rwc.RemoteAddr(), err, buf)
+		}
+
+		if !writer.hasWritten {
+			writer.WriteStatus(StatusCGIError, "internal panic")
 		}
 	}()
 
@@ -130,8 +136,6 @@ func (s *Server) serve(rwc *tls.Conn) {
 	}
 
 	fmt.Printf("--> %s\n", req.URL)
-
-	writer := newResponseWriter(rwc)
 
 	s.Handler.ServeGemini(context.TODO(), req, writer)
 
